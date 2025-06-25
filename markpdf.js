@@ -146,10 +146,17 @@ class MarkPDF {
   }
 
   async startWatching() {
-    console.log(`👀 Watching ${this.inputFile} for changes...`);
+    const toolIndexFile = path.join(this.toolDir, 'index.html');
+    const toolStylesFile = path.join(this.toolDir, 'styles.css');
+    const watchFiles = [this.inputFile, toolIndexFile, toolStylesFile];
+    
+    console.log(`👀 Watching for changes:`);
+    console.log(`   📝 ${this.inputFile} (markdown content)`);
+    console.log(`   🎨 ${toolStylesFile} (styles)`);
+    console.log(`   📄 ${toolIndexFile} (template)`);
     console.log('   Press Ctrl+C to stop');
     
-    const watcher = chokidar.watch(this.inputFile, {
+    const watcher = chokidar.watch(watchFiles, {
       persistent: true,
       ignoreInitial: true,
       awaitWriteFinish: {
@@ -158,8 +165,17 @@ class MarkPDF {
       }
     });
     
-    watcher.on('change', async () => {
-      console.log(`\n📝 File changed, regenerating PDF...`);
+    watcher.on('change', async (changedFile) => {
+      const fileName = path.basename(changedFile);
+      console.log(`\n📝 ${fileName} changed, regenerating PDF...`);
+      
+      // If template files changed, re-copy them to working directory
+      if (changedFile === path.join(this.toolDir, 'index.html') || 
+          changedFile === path.join(this.toolDir, 'styles.css')) {
+        console.log('🔄 Updating template files...');
+        await this.setupWorkingDirectory();
+      }
+      
       await this.generatePDF();
     });
     
