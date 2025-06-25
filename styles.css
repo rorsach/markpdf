@@ -1,0 +1,47 @@
+/* Print styles */
+@page {
+  size: letter;
+  margin: 0.5in;
+}
+
+html {
+    font-size: 86%;
+    max-width: 7.5in;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: "Inter";
+    font-size: 0.9rem;
+}
+
+h1, h2, h3, h4 {
+    margin: 0.95rem 0 0.4rem 0;
+    padding: 0;
+}
+
+h4 {
+    margin-left: 2.0rem;
+}
+
+ul {
+    margin: 0;
+    padding-left: 2.0rem;
+}
+
+.page-size.p1, .page-size.p2  {
+    position:absolute;
+    left: 0px;
+    border: 1px solid red;
+    width: 7.5in;
+    height: 10in; 
+}
+
+.p1 {
+    top: 0in;
+}
+
+.p2 {
+    top: 10in;
+}
