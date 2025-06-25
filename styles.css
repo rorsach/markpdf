@@ -1,7 +1,7 @@
 /* Print styles */
 @page {
-  size: letter;
-  margin: 0.5in;
+    size: letter;
+    margin: 0.5in;
 }
 
 html {
@@ -35,7 +35,7 @@ ul {
     left: 0px;
     border: 1px solid red;
     width: 7.5in;
-    height: 10in; 
+    height: 10in;
 }
 
 .p1 {
@@ -44,4 +44,20 @@ ul {
 
 .p2 {
     top: 10in;
+}
+
+/* Skills Section Styling */
+#skills + ul {
+    list-style: initial;
+    /* padding-left: 0; */
+    /* margin-top: 0.5em; */
+}
+
+#skills + ul li {
+}
+
+#skills + ul li strong {
+    display: inline-block;
+    min-width: 100px;
+    font-weight: 400;
 }
