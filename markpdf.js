@@ -10,8 +10,9 @@ class MarkPDF {
     this.inputDir = path.dirname(this.inputFile);
     this.inputBasename = path.basename(this.inputFile, '.md');
     this.outputFile = path.join(this.inputDir, `${this.inputBasename}.pdf`);
+    this.htmlFile = `${this.inputBasename}.html`;
     this.port = 8000;
-    this.markservUrl = `http://localhost:${this.port}/index.html`;
+    this.markservUrl = `http://localhost:${this.port}/${this.htmlFile}`;
     this.markservProcess = null;
     this.toolDir = __dirname;
   }
@@ -35,7 +36,7 @@ class MarkPDF {
     // Copy template files to working directory
     const indexTemplate = path.join(this.toolDir, 'index.html');
     const stylesTemplate = path.join(this.toolDir, 'styles.css');
-    const workingIndex = path.join(this.inputDir, 'index.html');
+    const workingIndex = path.join(this.inputDir, this.htmlFile);
     const workingStyles = path.join(this.inputDir, 'styles.css');
 
     // Check if template files exist
@@ -55,14 +56,17 @@ class MarkPDF {
     fs.copyFileSync(stylesTemplate, workingStyles);
 
     console.log(`📁 Created temporary files in ${this.inputDir}`);
+    console.log(`   📄 ${this.htmlFile} (HTML wrapper)`);
+    console.log(`   🎨 styles.css (PDF styles)`);
   }
 
   async startMarkserv() {
     this.port = await this.findAvailablePort();
     this.livereloadPort = await this.findAvailablePort(35729);
-    this.markservUrl = `http://localhost:${this.port}/index.html`;
+    this.markservUrl = `http://localhost:${this.port}/${this.htmlFile}`;
     
     console.log(`🚀 Starting markserv on port ${this.port} (livereload: ${this.livereloadPort})...`);
+    console.log(`🌐 HTML will be served at: ${this.markservUrl}`);
     
     this.markservProcess = spawn('npx', ['markserv', '--port', this.port.toString(), '--silent', '--livereloadport', this.livereloadPort.toString()], {
       cwd: this.inputDir,
@@ -193,13 +197,14 @@ class MarkPDF {
     // Remove temporary files only if they're not in the tool directory
     if (this.inputDir !== this.toolDir) {
       const tempFiles = [
-        path.join(this.inputDir, 'index.html'),
+        path.join(this.inputDir, this.htmlFile),
         path.join(this.inputDir, 'styles.css')
       ];
       
       tempFiles.forEach(file => {
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
+          console.log(`🗑️  Removed: ${path.basename(file)}`);
         }
       });
       
