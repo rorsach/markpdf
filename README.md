@@ -54,7 +54,7 @@ The PDF will be saved in the same directory as the input markdown file with the 
 The tool uses custom CSS (`styles.css`) optimized for PDF output with:
 - Letter-size pages
 - 0.5 inch margins
-- Inter font family
+- Noto font family
 - Proper print styling
 
 You can modify `styles.css` to customize the PDF appearance.
