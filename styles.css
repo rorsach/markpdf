@@ -58,6 +58,6 @@ ul {
 
 #skills + ul li strong {
     display: inline-block;
-    min-width: 100px;
+    min-width: 92px;
     font-weight: 400;
 }

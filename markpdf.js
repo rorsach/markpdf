@@ -52,7 +52,7 @@ class MarkPDF {
     indexContent = indexContent.replace('MARKDOWN_FILE', path.basename(this.inputFile));
     
     // Write files to working directory
-    fs.writeFileSync(workingIndex, indexContent);
+    fs.writeFileSync(workingIndex, indexContent, 'utf8');
     fs.copyFileSync(stylesTemplate, workingStyles);
 
     console.log(`📁 Created temporary files in ${this.inputDir}`);
