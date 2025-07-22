@@ -131,14 +131,14 @@ class MarkPDFChromium {
   }
 
   async startWatching() {
-    const toolIndexFile = path.join(this.toolDir, 'index.html');
-    const toolStylesFile = path.join(this.toolDir, 'styles.css');
-    const watchFiles = [this.inputFile, toolIndexFile, toolStylesFile];
+    const workingStyles = path.join(this.inputDir, 'styles.css');
+    const workingIndex = path.join(this.inputDir, this.htmlFile);
+    const watchFiles = [this.inputFile, workingStyles, workingIndex];
     
     console.log(`👀 Watching for changes:`);
     console.log(`   📝 ${this.inputFile} (markdown content)`);
-    console.log(`   🎨 ${toolStylesFile} (styles)`);
-    console.log(`   📄 ${toolIndexFile} (template)`);
+    console.log(`   🎨 ${workingStyles} (styles)`);
+    console.log(`   📄 ${workingIndex} (template)`);
     console.log('   Press Ctrl+C to stop');
     
     const watcher = chokidar.watch(watchFiles, {
@@ -153,13 +153,6 @@ class MarkPDFChromium {
     watcher.on('change', async (changedFile) => {
       const fileName = path.basename(changedFile);
       console.log(`\n📝 ${fileName} changed, regenerating PDF...`);
-      
-      if (changedFile === path.join(this.toolDir, 'index.html') || 
-          changedFile === path.join(this.toolDir, 'styles.css')) {
-        console.log('🔄 Updating template files...');
-        await this.setupWorkingDirectory();
-      }
-      
       await this.generatePDF();
     });
     
