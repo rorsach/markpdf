@@ -139,7 +139,7 @@ class MarkPDFChromium {
   async stripAndInjectMetadata(pdfOutputPath) {
     return new Promise((resolve, reject) => {
       console.log('✨ Stripping PDF metadata with mat2...');
-      const mat2Process = spawn('mat2', [pdfOutputPath]);
+      const mat2Process = spawn('mat2', ['--lightweight', pdfOutputPath]);
 
       mat2Process.on('error', (err) => {
         if (err.code === 'ENOENT') {
@@ -154,19 +154,8 @@ class MarkPDFChromium {
 
       mat2Process.on('close', (mat2Code) => {
         if (mat2Code === 0) {
-          const dirname = path.dirname(pdfOutputPath);
-          const ext = path.extname(pdfOutputPath);
-          const basename = path.basename(pdfOutputPath, ext);
-          const cleanedPdfPath = path.join(dirname, `${basename}.cleaned${ext}`);
-
-          fs.unlink(pdfOutputPath, (unlinkErr) => {
-            if (unlinkErr) return reject(unlinkErr);
-            fs.rename(cleanedPdfPath, pdfOutputPath, (renameErr) => {
-              if (renameErr) return reject(renameErr);
-              console.log('✅ Metadata stripped successfully.');
-              this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
-            });
-          });
+          console.log('✅ Metadata stripped successfully.');
+          this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
         } else if (mat2Code !== null) {
           console.error(`❌ mat2 failed with exit code ${mat2Code}.`);
           this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
