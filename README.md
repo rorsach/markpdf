@@ -74,3 +74,38 @@ The tool uses custom CSS (`styles.css`) optimized for PDF output with:
 - Proper print styling
 
 You can modify `styles.css` to customize the PDF appearance.
+
+## PDF Metadata
+
+The script can automatically embed metadata into the generated PDF. To use this feature, create a file named `<your-document-name>-metadata.md` in the same directory as your source markdown file.
+
+For example, if you are converting `resume.md`, you should create a `resume-metadata.md` file.
+
+### Metadata Format
+
+The metadata file should contain key-value pairs, with each entry on a new line, separated by a colon (`:`).
+
+Example `resume-metadata.md`:
+```
+Title: My Resume
+Author: John Doe
+Subject: Professional Experience
+Keywords: Software Engineer, Web Developer, Resume
+Creator: MarkPDF
+```
+
+### Supported Metadata Fields
+
+The script uses `exiftool` to embed metadata. Here are some common metadata fields you can use:
+
+- `Title`
+- `Author`
+- `Subject`
+- `Keywords`
+- `Creator`
+- `Producer`
+- `CreationDate` (e.g., `2023:10:27 10:00:00`)
+- `ModDate` (e.g., `2023:10:27 10:00:00`)
+- `Copyright`
+
+**Note:** This feature requires `exiftool` to be installed on your system. If `exiftool` is not found, the script will print a warning and skip the metadata injection step.

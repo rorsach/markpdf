@@ -42,15 +42,21 @@ class MarkPDFChromium {
       throw new Error(`Template file not found: ${stylesTemplate}`);
     }
 
-    let indexContent = fs.readFileSync(indexTemplate, 'utf8');
-    indexContent = indexContent.replace('MARKDOWN_FILE', path.basename(this.inputFile));
-    
-    fs.writeFileSync(workingIndex, indexContent, 'utf8');
-    fs.copyFileSync(stylesTemplate, workingStyles);
+    if (fs.existsSync(workingIndex)) {
+      console.log(`⚠️  Warning: ${this.htmlFile} already exists, skipping creation.`);
+    } else {
+      let indexContent = fs.readFileSync(indexTemplate, 'utf8');
+      indexContent = indexContent.replace('MARKDOWN_FILE', path.basename(this.inputFile));
+      fs.writeFileSync(workingIndex, indexContent, 'utf8');
+      console.log(`   📄 Created ${this.htmlFile} (HTML wrapper)`);
+    }
 
-    console.log(`📁 Created temporary files in ${this.inputDir}`);
-    console.log(`   📄 ${this.htmlFile} (HTML wrapper)`);
-    console.log(`   🎨 styles.css (PDF styles)`);
+    if (fs.existsSync(workingStyles)) {
+      console.log(`⚠️  Warning: styles.css already exists, skipping creation.`);
+    } else {
+      fs.copyFileSync(stylesTemplate, workingStyles);
+      console.log(`   🎨 Created styles.css (PDF styles)`);
+    }
   }
 
   async startMarkserv() {
@@ -121,10 +127,99 @@ class MarkPDFChromium {
       chromiumProcess.on('close', (code) => {
         if (code === 0) {
           console.log(`✅ PDF saved: ${this.outputFile}`);
-          resolve();
+          this.stripAndInjectMetadata(pdfOutputPath).then(resolve).catch(reject);
         } else {
           console.error(`❌ PDF generation failed with exit code ${code}`);
           reject(new Error(`Chromium process exited with code ${code}`));
+        }
+      });
+    });
+  }
+
+  async stripAndInjectMetadata(pdfOutputPath) {
+    return new Promise((resolve, reject) => {
+      console.log('✨ Stripping PDF metadata with mat2...');
+      const mat2Process = spawn('mat2', [pdfOutputPath]);
+
+      mat2Process.on('error', (err) => {
+        if (err.code === 'ENOENT') {
+          console.warn('⚠️  Warning: `mat2` not found. Skipping metadata stripping.');
+          console.warn('   To install, run: pip install mat2');
+          this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
+        } else {
+          console.error('❌ mat2 error:', err);
+          reject(err);
+        }
+      });
+
+      mat2Process.on('close', (mat2Code) => {
+        if (mat2Code === 0) {
+          const dirname = path.dirname(pdfOutputPath);
+          const ext = path.extname(pdfOutputPath);
+          const basename = path.basename(pdfOutputPath, ext);
+          const cleanedPdfPath = path.join(dirname, `${basename}.cleaned${ext}`);
+
+          fs.unlink(pdfOutputPath, (unlinkErr) => {
+            if (unlinkErr) return reject(unlinkErr);
+            fs.rename(cleanedPdfPath, pdfOutputPath, (renameErr) => {
+              if (renameErr) return reject(renameErr);
+              console.log('✅ Metadata stripped successfully.');
+              this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
+            });
+          });
+        } else if (mat2Code !== null) {
+          console.error(`❌ mat2 failed with exit code ${mat2Code}.`);
+          this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
+        }
+      });
+    });
+  }
+
+  async injectMetadata(pdfOutputPath) {
+    return new Promise((resolve, reject) => {
+      const metadataFile = path.join(this.inputDir, `${this.inputBasename}-metadata.md`);
+      if (!fs.existsSync(metadataFile)) {
+        console.log('ℹ️ No metadata file found, skipping metadata injection.');
+        return resolve();
+      }
+
+      console.log(`Injecting metadata from ${metadataFile}...`);
+      const metadataContent = fs.readFileSync(metadataFile, 'utf8');
+      const exiftoolArgs = [];
+      metadataContent.split('\n').forEach(line => {
+        const [key, ...valueParts] = line.split(':');
+        if (key && valueParts.length > 0) {
+          const value = valueParts.join(':').trim();
+          exiftoolArgs.push(`-${key}=${value}`);
+        }
+      });
+
+      if (exiftoolArgs.length === 0) {
+        console.log('No valid metadata found in file.');
+        return resolve();
+      }
+
+      exiftoolArgs.push('-overwrite_original', pdfOutputPath);
+      const exiftoolProcess = spawn('exiftool', exiftoolArgs);
+
+      exiftoolProcess.on('error', (err) => {
+        if (err.code === 'ENOENT') {
+          console.warn('⚠️  Warning: `exiftool` not found. Skipping metadata injection.');
+          console.warn('   To install on Debian/Ubuntu, run: sudo apt-get install libimage-exiftool-perl');
+          resolve();
+        } else {
+          console.error('❌ Exiftool error:', err);
+          reject(err);
+        }
+      });
+
+      exiftoolProcess.on('close', (code) => {
+        if (code === 0) {
+          console.log('✅ Metadata injected successfully.');
+          resolve();
+        } else if (code !== null) {
+          console.error(`❌ Exiftool failed with exit code ${code}.`);
+          reject(new Error(`Exiftool process exited with code ${code}`));
         }
       });
     });
