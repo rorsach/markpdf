@@ -6,6 +6,9 @@
   "bin": {
     "markpdf": "./markpdf"
   },
+  "scripts": {
+    "start": "node markpdf-chromium.js"
+  },
   "dependencies": {
     "chokidar": "^3.5.3",
     "puppeteer": "^21.11.0",
