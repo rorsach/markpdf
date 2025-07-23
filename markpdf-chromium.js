@@ -139,7 +139,7 @@ class MarkPDFChromium {
   async stripAndInjectMetadata(pdfOutputPath) {
     return new Promise((resolve, reject) => {
       console.log('✨ Stripping PDF metadata with mat2...');
-      const mat2Process = spawn('mat2', ['--lightweight', pdfOutputPath]);
+      const mat2Process = spawn('mat2', ['--lightweight', '--inplace', pdfOutputPath]);
 
       mat2Process.on('error', (err) => {
         if (err.code === 'ENOENT') {
