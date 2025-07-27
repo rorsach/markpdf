@@ -68,7 +68,7 @@ class MarkPDF {
     console.log(`🚀 Starting markserv on port ${this.port} (livereload: ${this.livereloadPort})...`);
     console.log(`🌐 HTML will be served at: ${this.markservUrl}`);
     
-    this.markservProcess = spawn('npx', ['markserv', '--port', this.port.toString(), '--silent', '--livereloadport', this.livereloadPort.toString()], {
+      this.markservProcess = spawn('npx', ['markserv', '--port', this.port.toString(), '--no-browser', '--silent', '--livereloadport', this.livereloadPort.toString()], {
       cwd: this.inputDir,
       stdio: ['ignore', 'pipe', 'pipe']
     });
