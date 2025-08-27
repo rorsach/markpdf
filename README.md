@@ -1,11 +1,6 @@
 # MarkPDF
 
-A simple tool to watch Markdown files and automatically generate PDFs. This tool offers two methods for PDF generation:
-
-1.  `markpdf.js`: Uses `puppeteer`.
-2.  `markpdf-chromium.js`: Uses a direct Chromium CLI command.
-
-The `markpdf-chromium.js` script was created to address stability issues with `puppeteer`, particularly the lack of official ARM64 Chromium builds and compatibility problems with Firefox.
+A simple tool to watch Markdown files and automatically generate PDFs using Chromium CLI.
 
 ## Features
 
@@ -26,13 +21,9 @@ The `markpdf-chromium.js` script was created to address stability issues with `p
 
 ## Usage
 
-The primary script is now `markpdf-chromium.js` for better stability.
-
 ```bash
 ./markpdf <markdown-file>
 ```
-
-This will use the `markpdf-chromium.js` script by default.
 
 Examples:
 ```bash
@@ -48,13 +39,6 @@ The tool will:
 
 Press `Ctrl+C` to stop watching and clean up.
 
-### Legacy Puppeteer Usage
-
-If you need to use the original `puppeteer`-based script, you can run it directly:
-```bash
-node markpdf.js <markdown-file>
-```
-
 ## Output
 
 The PDF will be saved in the same directory as the input markdown file with the same name but `.pdf` extension.
@@ -63,7 +47,6 @@ The PDF will be saved in the same directory as the input markdown file with the 
 
 - **chokidar**: File watching
 - **markserv**: Markdown to HTML rendering with GitHub styling
-- **puppeteer**: HTML to PDF conversion (used in `markpdf.js`)
 
 ## Styling
 

@@ -7,11 +7,10 @@
     "markpdf": "./markpdf"
   },
   "scripts": {
-    "start": "node markpdf-chromium.js"
+    "start": "node markpdf.js"
   },
   "dependencies": {
     "chokidar": "^3.5.3",
-    "puppeteer": "^21.11.0",
     "markserv": "^1.17.4"
   }
 }
