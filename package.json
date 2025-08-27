@@ -10,7 +10,7 @@
     "start": "node markpdf.js"
   },
   "dependencies": {
-    "chokidar": "^3.5.3",
+    "chokidar": "^3.6.0",
     "markserv": "^1.17.4"
   }
 }
