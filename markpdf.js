@@ -138,6 +138,59 @@ class MarkPDFChromium {
 
   async stripAndInjectMetadata(pdfOutputPath) {
     return new Promise((resolve, reject) => {
+      console.log('🔧 Cleaning PDF metadata with MuPDF mutool...');
+      
+      // Use mutool clean to rewrite the PDF and strip metadata
+      const tempOutputPath = pdfOutputPath.replace('.pdf', '_cleaned.pdf');
+      const mutoolArgs = [
+        'clean',
+        '-d',  // Remove duplicate objects
+        '-s',  // Sanitize content streams
+        '-z',  // Compress streams
+        pdfOutputPath,
+        tempOutputPath
+      ];
+
+      const mutoolProcess = spawn('mutool', mutoolArgs);
+
+      mutoolProcess.on('error', (err) => {
+        if (err.code === 'ENOENT') {
+          console.warn('⚠️  Warning: `mutool` not found. Falling back to mat2...');
+          console.warn('   To install MuPDF on Debian/Ubuntu, run: sudo apt-get install mupdf-tools');
+          this.fallbackMat2(pdfOutputPath).then(resolve).catch(reject);
+        } else {
+          console.error('❌ mutool error:', err);
+          reject(err);
+        }
+      });
+
+      mutoolProcess.on('close', (code) => {
+        if (code === 0) {
+          // Replace original with cleaned version
+          const fs = require('fs');
+          try {
+            fs.renameSync(tempOutputPath, pdfOutputPath);
+            console.log('✅ PDF cleaned with mutool.');
+            this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
+          } catch (renameError) {
+            console.error('❌ Failed to replace original PDF:', renameError);
+            this.fallbackMat2(pdfOutputPath).then(resolve).catch(reject);
+          }
+        } else {
+          console.warn('⚠️  mutool failed, falling back to mat2...');
+          // Clean up temp file if it exists
+          const fs = require('fs');
+          if (fs.existsSync(tempOutputPath)) {
+            fs.unlinkSync(tempOutputPath);
+          }
+          this.fallbackMat2(pdfOutputPath).then(resolve).catch(reject);
+        }
+      });
+    });
+  }
+
+  async fallbackMat2(pdfOutputPath) {
+    return new Promise((resolve, reject) => {
       console.log('✨ Stripping PDF metadata with mat2...');
       const mat2Process = spawn('mat2', ['--lightweight', '--inplace', pdfOutputPath]);
 
