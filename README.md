@@ -19,6 +19,7 @@ Perfect for:
 
 - 🔄  Watches Markdown files for changes and automatically regenerates PDF when the markdown file changes. With a viewer like Evince or Okular, the changes are automatically reloaded for live viewing.
 - 🎨 Uses GitHub-style markdown rendering via [markserv](https://github.com/markserv/markserv)
+- 📝 Supports all markdown syntax that markserv supports, including GitHub Flavored Markdown extensions
 - 📄 Reliable 1:1 PDF generation from HTML using the Chromium CLI
 - 🧹 PDF metadata cleanup using mupdf
 
@@ -32,6 +33,38 @@ Perfect for:
 3.  Make sure you have the following system dependencies installed:
     - **Chromium** (or Google Chrome) - for PDF generation
     - **mupdf** - for PDF metadata cleanup and optimization
+
+### Optional: Create an Alias for Global Usage
+
+To use MarkPDF from any directory, you can create an alias in your shell configuration:
+
+**For Bash (add to `~/.bashrc` or `~/.bash_profile`):**
+```bash
+alias markpdf='/path/to/markpdf/markpdf'
+```
+
+**For Zsh (add to `~/.zshrc`):**
+```bash
+alias markpdf='/path/to/markpdf/markpdf'
+```
+
+**For Fish (add to `~/.config/fish/config.fish`):**
+```fish
+alias markpdf='/path/to/markpdf/markpdf'
+```
+
+Replace `/path/to/markpdf/markpdf` with the actual path to your MarkPDF installation.
+
+After adding the alias, reload your shell configuration:
+```bash
+source ~/.bashrc  # or ~/.zshrc, ~/.bash_profile, etc.
+```
+
+Now you can run MarkPDF from any directory:
+```bash
+markpdf ~/documents/my-resume.md
+markpdf /path/to/any/document.md
+```
 
 ## Usage
 
@@ -65,7 +98,7 @@ The PDF will be saved in the same directory as the input markdown file with the 
 ## Styling
 
 The tool uses custom CSS (`styles.css`) optimized for PDF output with:
-- Letter-size pages
+- US Letter-size pages
 - 0.5 inch margins
 - Noto font family
 - Proper print styling
