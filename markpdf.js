@@ -304,19 +304,39 @@ class MarkPDFChromium {
     }
     
     if (this.inputDir !== this.toolDir) {
-      const tempFiles = [
-        path.join(this.inputDir, this.htmlFile),
-        path.join(this.inputDir, 'styles.css')
+      const filesToCheck = [
+        {
+          target: path.join(this.inputDir, this.htmlFile),
+          template: path.join(this.toolDir, 'index.html'),
+          isTemplate: true
+        },
+        {
+          target: path.join(this.inputDir, 'styles.css'),
+          template: path.join(this.toolDir, 'styles.css'),
+          isTemplate: false
+        }
       ];
       
-      tempFiles.forEach(file => {
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-          console.log(`🗑️  Removed: ${path.basename(file)}`);
+      filesToCheck.forEach(({ target, template, isTemplate }) => {
+        if (fs.existsSync(target) && fs.existsSync(template)) {
+          const targetContent = fs.readFileSync(target, 'utf8');
+          let templateContent = fs.readFileSync(template, 'utf8');
+          
+          // For HTML template, we need to account for the MARKDOWN_FILE substitution
+          if (isTemplate) {
+            templateContent = templateContent.replace('MARKDOWN_FILE', path.basename(this.inputFile));
+          }
+          
+          if (targetContent === templateContent) {
+            fs.unlinkSync(target);
+            console.log(`🗑️  Removed: ${path.basename(target)} (unchanged from template)`);
+          } else {
+            console.log(`💾 Preserved: ${path.basename(target)} (contains customizations)`);
+          }
         }
       });
       
-      console.log('\n🧹 Cleaned up temporary files');
+      console.log('\n🧹 Cleanup complete');
     } else {
       console.log('\n🧹 Skipped cleanup (working in tool directory)');
     }
