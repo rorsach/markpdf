@@ -2,6 +2,8 @@
 
 A simple tool to watch Markdown files and automatically generate PDFs using Chromium's print-to-pdf command line interface.
 
+![screenshot](screenshot.png) 
+
 ## What is MarkPDF for?
 
 MarkPDF is designed for engineers and technical professionals who prefer writing documentation in Markdown but need to deliver polished PDFs to end users. If you enjoy the simplicity of Markdown syntax and the power of HTML/CSS for document formatting, but your clients, managers, or stakeholders expect traditional PDF documents, MarkPDF bridges that gap.

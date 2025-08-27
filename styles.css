@@ -30,6 +30,10 @@ ul {
     padding-left: 2.0rem;
 }
 
+img {
+    width: 100%;
+}
+
 .page-size.p1, .page-size.p2  {
     position:absolute;
     left: 0px;
