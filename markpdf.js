@@ -1,10 +1,10 @@
 const chokidar = require('chokidar');
-const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const net = require('net');
 
-class MarkPDF {
+class MarkPDFChromium {
   constructor(inputFile) {
     this.inputFile = path.resolve(inputFile);
     this.inputDir = path.dirname(this.inputFile);
@@ -18,28 +18,23 @@ class MarkPDF {
   }
 
   async findAvailablePort(startPort = 8000) {
-    const net = require('net');
-    
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const server = net.createServer();
+      server.unref();
+      server.on('error', () => resolve(this.findAvailablePort(startPort + 1)));
       server.listen(startPort, () => {
-        const port = server.address().port;
+        const { port } = server.address();
         server.close(() => resolve(port));
-      });
-      server.on('error', () => {
-        resolve(this.findAvailablePort(startPort + 1));
       });
     });
   }
 
   async setupWorkingDirectory() {
-    // Copy template files to working directory
     const indexTemplate = path.join(this.toolDir, 'index.html');
     const stylesTemplate = path.join(this.toolDir, 'styles.css');
     const workingIndex = path.join(this.inputDir, this.htmlFile);
     const workingStyles = path.join(this.inputDir, 'styles.css');
 
-    // Check if template files exist
     if (!fs.existsSync(indexTemplate)) {
       throw new Error(`Template file not found: ${indexTemplate}`);
     }
@@ -47,17 +42,21 @@ class MarkPDF {
       throw new Error(`Template file not found: ${stylesTemplate}`);
     }
 
-    // Read template and replace placeholder
-    let indexContent = fs.readFileSync(indexTemplate, 'utf8');
-    indexContent = indexContent.replace('MARKDOWN_FILE', path.basename(this.inputFile));
-    
-    // Write files to working directory
-    fs.writeFileSync(workingIndex, indexContent, 'utf8');
-    fs.copyFileSync(stylesTemplate, workingStyles);
+    if (fs.existsSync(workingIndex)) {
+      console.log(`⚠️  Warning: ${this.htmlFile} already exists, skipping creation.`);
+    } else {
+      let indexContent = fs.readFileSync(indexTemplate, 'utf8');
+      indexContent = indexContent.replace('MARKDOWN_FILE', path.basename(this.inputFile));
+      fs.writeFileSync(workingIndex, indexContent, 'utf8');
+      console.log(`   📄 Created ${this.htmlFile} (HTML wrapper)`);
+    }
 
-    console.log(`📁 Created temporary files in ${this.inputDir}`);
-    console.log(`   📄 ${this.htmlFile} (HTML wrapper)`);
-    console.log(`   🎨 styles.css (PDF styles)`);
+    if (fs.existsSync(workingStyles)) {
+      console.log(`⚠️  Warning: styles.css already exists, skipping creation.`);
+    } else {
+      fs.copyFileSync(stylesTemplate, workingStyles);
+      console.log(`   🎨 Created styles.css (PDF styles)`);
+    }
   }
 
   async startMarkserv() {
@@ -73,91 +72,157 @@ class MarkPDF {
       stdio: ['ignore', 'pipe', 'pipe']
     });
 
-    // Wait for markserv to be ready
     await this.waitForMarkserv();
   }
 
-  async waitForMarkserv(maxAttempts = 10) {
-    const puppeteerBrowser = await puppeteer.launch({ 
-      headless: 'new',
-      executablePath: '/usr/bin/chromium-browser',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await puppeteerBrowser.newPage();
-    
+  async waitForMarkserv(maxAttempts = 10, delay = 1000) {
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        console.log(`⏳ Checking if markserv is ready (attempt ${i + 1}/${maxAttempts})...`);
-        await page.goto(this.markservUrl, { waitUntil: 'networkidle2', timeout: 5000 });
-        await puppeteerBrowser.close();
+        await new Promise((resolve, reject) => {
+          const socket = net.createConnection({ port: this.port, host: 'localhost' }, () => {
+            socket.end();
+            resolve();
+          });
+          socket.on('error', (err) => reject(err));
+        });
         console.log('✅ Markserv is ready!');
-        return true;
+        return;
       } catch (error) {
         if (i === maxAttempts - 1) {
-          await puppeteerBrowser.close();
           throw new Error(`Markserv not ready after ${maxAttempts} attempts`);
         }
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
 
   async generatePDF() {
-    console.log('📄 Generating PDF...');
+    console.log('📄 Generating PDF using Chromium CLI...');
     
     if (!fs.existsSync(this.inputFile)) {
       console.error(`❌ Markdown file not found: ${this.inputFile}`);
       return;
     }
 
-    const browser = await puppeteer.launch({ 
-      headless: 'new',
-      executablePath: '/usr/bin/chromium-browser',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    const pdfOutputPath = path.join(this.inputDir, `${this.inputBasename}.pdf`);
+    const command = 'chromium';
+    const args = [
+      '--headless',
+      `--print-to-pdf=${pdfOutputPath}`,
+      '--no-pdf-header-footer',
+      this.markservUrl
+    ];
+
+    return new Promise((resolve, reject) => {
+      const chromiumProcess = spawn(command, args);
+
+      chromiumProcess.stdout.on('data', (data) => {
+        console.log(`[Chromium]: ${data}`);
+      });
+
+      chromiumProcess.stderr.on('data', (data) => {
+        console.error(`[Chromium]: ${data}`);
+      });
+
+      chromiumProcess.on('close', (code) => {
+        if (code === 0) {
+          console.log(`✅ PDF saved: ${this.outputFile}`);
+          this.stripAndInjectMetadata(pdfOutputPath).then(resolve).catch(reject);
+        } else {
+          console.error(`❌ PDF generation failed with exit code ${code}`);
+          reject(new Error(`Chromium process exited with code ${code}`));
+        }
+      });
     });
-    
-    try {
-      const page = await browser.newPage();
-      await page.setViewport({ width: 1200, height: 1600 });
-      
-      await page.goto(this.markservUrl, { 
-        waitUntil: 'networkidle2',
-        timeout: 10000 
+  }
+
+  async stripAndInjectMetadata(pdfOutputPath) {
+    return new Promise((resolve, reject) => {
+      console.log('✨ Stripping PDF metadata with mat2...');
+      const mat2Process = spawn('mat2', ['--lightweight', '--inplace', pdfOutputPath]);
+
+      mat2Process.on('error', (err) => {
+        if (err.code === 'ENOENT') {
+          console.warn('⚠️  Warning: `mat2` not found. Skipping metadata stripping.');
+          console.warn('   To install, run: pip install mat2');
+          this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
+        } else {
+          console.error('❌ mat2 error:', err);
+          reject(err);
+        }
       });
-      
-      await page.waitForTimeout(1000);
-      
-      await page.pdf({
-        path: this.outputFile,
-        format: 'Letter',
-        printBackground: true,
-        margin: { 
-          top: '0.5in', 
-          right: '0.5in', 
-          bottom: '0.5in', 
-          left: '0.5in' 
-        },
-        preferCSSPageSize: true,
+
+      mat2Process.on('close', (mat2Code) => {
+        if (mat2Code === 0) {
+          console.log('✅ Metadata stripped successfully.');
+          this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
+        } else if (mat2Code !== null) {
+          console.error(`❌ mat2 failed with exit code ${mat2Code}.`);
+          this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
+        }
       });
-      
-      console.log(`✅ PDF saved: ${this.outputFile}`);
-      
-    } catch (error) {
-      console.error(`❌ PDF generation failed:`, error.message);
-    } finally {
-      await browser.close();
-    }
+    });
+  }
+
+  async injectMetadata(pdfOutputPath) {
+    return new Promise((resolve, reject) => {
+      const metadataFile = path.join(this.inputDir, `${this.inputBasename}-metadata.md`);
+      if (!fs.existsSync(metadataFile)) {
+        console.log('ℹ️ No metadata file found, skipping metadata injection.');
+        return resolve();
+      }
+
+      console.log(`Injecting metadata from ${metadataFile}...`);
+      const metadataContent = fs.readFileSync(metadataFile, 'utf8');
+      const exiftoolArgs = [];
+      metadataContent.split('\n').forEach(line => {
+        const [key, ...valueParts] = line.split(':');
+        if (key && valueParts.length > 0) {
+          const value = valueParts.join(':').trim();
+          exiftoolArgs.push(`-${key}=${value}`);
+        }
+      });
+
+      if (exiftoolArgs.length === 0) {
+        console.log('No valid metadata found in file.');
+        return resolve();
+      }
+
+      exiftoolArgs.push('-overwrite_original', pdfOutputPath);
+      const exiftoolProcess = spawn('exiftool', exiftoolArgs);
+
+      exiftoolProcess.on('error', (err) => {
+        if (err.code === 'ENOENT') {
+          console.warn('⚠️  Warning: `exiftool` not found. Skipping metadata injection.');
+          console.warn('   To install on Debian/Ubuntu, run: sudo apt-get install libimage-exiftool-perl');
+          resolve();
+        } else {
+          console.error('❌ Exiftool error:', err);
+          reject(err);
+        }
+      });
+
+      exiftoolProcess.on('close', (code) => {
+        if (code === 0) {
+          console.log('✅ Metadata injected successfully.');
+          resolve();
+        } else if (code !== null) {
+          console.error(`❌ Exiftool failed with exit code ${code}.`);
+          reject(new Error(`Exiftool process exited with code ${code}`));
+        }
+      });
+    });
   }
 
   async startWatching() {
-    const toolIndexFile = path.join(this.toolDir, 'index.html');
-    const toolStylesFile = path.join(this.toolDir, 'styles.css');
-    const watchFiles = [this.inputFile, toolIndexFile, toolStylesFile];
+    const workingStyles = path.join(this.inputDir, 'styles.css');
+    const workingIndex = path.join(this.inputDir, this.htmlFile);
+    const watchFiles = [this.inputFile, workingStyles, workingIndex];
     
     console.log(`👀 Watching for changes:`);
     console.log(`   📝 ${this.inputFile} (markdown content)`);
-    console.log(`   🎨 ${toolStylesFile} (styles)`);
-    console.log(`   📄 ${toolIndexFile} (template)`);
+    console.log(`   🎨 ${workingStyles} (styles)`);
+    console.log(`   📄 ${workingIndex} (template)`);
     console.log('   Press Ctrl+C to stop');
     
     const watcher = chokidar.watch(watchFiles, {
@@ -172,14 +237,6 @@ class MarkPDF {
     watcher.on('change', async (changedFile) => {
       const fileName = path.basename(changedFile);
       console.log(`\n📝 ${fileName} changed, regenerating PDF...`);
-      
-      // If template files changed, re-copy them to working directory
-      if (changedFile === path.join(this.toolDir, 'index.html') || 
-          changedFile === path.join(this.toolDir, 'styles.css')) {
-        console.log('🔄 Updating template files...');
-        await this.setupWorkingDirectory();
-      }
-      
       await this.generatePDF();
     });
     
@@ -189,12 +246,10 @@ class MarkPDF {
   }
 
   cleanup() {
-    // Kill markserv process
     if (this.markservProcess) {
       this.markservProcess.kill();
     }
     
-    // Remove temporary files only if they're not in the tool directory
     if (this.inputDir !== this.toolDir) {
       const tempFiles = [
         path.join(this.inputDir, this.htmlFile),
@@ -216,7 +271,7 @@ class MarkPDF {
 
   async run() {
     try {
-      console.log(`🎯 MarkPDF starting for: ${this.inputFile}`);
+      console.log(`🎯 MarkPDF-Chromium starting for: ${this.inputFile}`);
       
       await this.setupWorkingDirectory();
       await this.startMarkserv();
@@ -231,7 +286,6 @@ class MarkPDF {
   }
 }
 
-// Handle graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n👋 Shutting down...');
   if (global.markpdfInstance) {
@@ -248,19 +302,15 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-// Export for CLI usage
-module.exports = MarkPDF;
-
-// If run directly
 if (require.main === module) {
   const inputFile = process.argv[2];
   
   if (!inputFile) {
-    console.error('Usage: node markpdf.js <markdown-file>');
+    console.error('Usage: node markpdf-chromium.js <markdown-file>');
     process.exit(1);
   }
   
-  const markpdf = new MarkPDF(inputFile);
+  const markpdf = new MarkPDFChromium(inputFile);
   global.markpdfInstance = markpdf;
   markpdf.run();
 }
