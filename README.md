@@ -36,36 +36,28 @@ Perfect for:
     - **Chromium** (or Google Chrome) - for PDF generation
     - **mupdf** - for PDF metadata cleanup and optimization
 
-### Optional: Create an Alias for Global Usage
+### Global Usage
 
-To use MarkPDF from any directory, create an alias pointing to the `markpdf` script. The script automatically finds its installation directory, so it works from anywhere.
+To run MarkPDF from any directory, add the installation directory to your PATH in your shell configuration (`~/.bashrc`, `~/.zshrc`, or `~/.config/fish/config.fish`):
 
-**For Bash (add to `~/.bashrc` or `~/.bash_profile`):**
 ```bash
-alias markpdf='~/path/to/markpdf/markpdf'
+export PATH="/path/to/markpdf:$PATH"
 ```
 
-**For Zsh (add to `~/.zshrc`):**
+Then reload your shell and run:
 ```bash
-alias markpdf='~/path/to/markpdf/markpdf'
+node markpdf.js ~/documents/my-resume.md
 ```
 
-**For Fish (add to `~/.config/fish/config.fish`):**
-```fish
-alias markpdf='~/path/to/markpdf/markpdf'
-```
-
-Replace `~/path/to/markpdf` with your actual installation path.
-
-After adding the alias, reload your shell configuration:
+Alternatively, create a symlink in a directory that's already in your PATH:
 ```bash
-source ~/.bashrc  # or ~/.zshrc, ~/.bash_profile, etc.
+ln -s /path/to/markpdf/markpdf.js ~/.local/bin/markpdf
+chmod +x ~/.local/bin/markpdf
 ```
 
-Now you can run MarkPDF from any directory:
+Then just run:
 ```bash
 markpdf ~/documents/my-resume.md
-markpdf /path/to/any/document.md
 ```
 
 ## Usage
