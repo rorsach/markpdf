@@ -1,6 +1,6 @@
 # MarkPDF
 
-A simple tool to watch Markdown files and automatically generate PDFs using Chromium's print-to-pdf command line interface.
+A simple **Linux-only** tool to watch Markdown files and automatically generate PDFs using Chromium's print-to-pdf command line interface.
 
 ![screenshot](screenshot.png) 
 

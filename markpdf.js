@@ -29,6 +29,24 @@ class MarkPDFChromium {
     });
   }
 
+  getChromiumCommand() {
+    const { execSync } = require('child_process');
+    
+    // Try native chromium first
+    try {
+      execSync('which chromium', { stdio: 'ignore' });
+      return { command: 'chromium', args: [] };
+    } catch {}
+    
+    // Try flatpak
+    try {
+      execSync('flatpak list | grep -q org.chromium.Chromium', { stdio: 'ignore' });
+      return { command: 'flatpak', args: ['run', 'org.chromium.Chromium'] };
+    } catch {}
+    
+    throw new Error('Chromium not found. Install via package manager or flatpak.');
+  }
+
   async setupWorkingDirectory() {
     const indexTemplate = path.join(this.toolDir, 'index.html');
     const stylesTemplate = path.join(this.toolDir, 'styles.css');
@@ -105,9 +123,12 @@ class MarkPDFChromium {
     }
 
     const pdfOutputPath = path.join(this.inputDir, `${this.inputBasename}.pdf`);
-    const command = 'chromium';
+    const { command, args: baseArgs } = this.getChromiumCommand();
     const args = [
+      ...baseArgs,
       '--headless',
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
       `--print-to-pdf=${pdfOutputPath}`,
       '--no-pdf-header-footer',
       this.markservUrl
@@ -137,54 +158,57 @@ class MarkPDFChromium {
   }
 
   async stripAndInjectMetadata(pdfOutputPath) {
-    return new Promise((resolve, reject) => {
-      console.log('🔧 Cleaning PDF metadata with MuPDF mutool...');
+    console.log('🔧 Clearing PDF metadata...');
+    
+    try {
+      const fs = require('fs');
+      let pdfData = fs.readFileSync(pdfOutputPath);
       
-      // Use mutool clean to rewrite the PDF and strip metadata
+      // Find and replace the entire metadata dictionary
+      const pdfString = pdfData.toString('binary');
+      const metadataStart = pdfString.indexOf('<</Title');
+      const metadataEnd = pdfString.indexOf('>>', metadataStart) + 2;
+      
+      if (metadataStart !== -1 && metadataEnd !== -1) {
+        const cleanedString = pdfString.substring(0, metadataStart) + '<<>>' + pdfString.substring(metadataEnd);
+        fs.writeFileSync(pdfOutputPath, Buffer.from(cleanedString, 'binary'));
+        console.log('✅ PDF metadata cleared.');
+      }
+      
+      // Now clean the PDF with mutool to fix any corruption
+      await this.cleanPDF(pdfOutputPath);
+      await this.injectMetadata(pdfOutputPath);
+    } catch (error) {
+      console.warn('⚠️  Binary edit failed, falling back to mat2...');
+      await this.fallbackMat2(pdfOutputPath);
+    }
+  }
+
+  async cleanPDF(pdfOutputPath) {
+    return new Promise((resolve, reject) => {
+      console.log('🔧 Cleaning PDF with mutool...');
+      
       const tempOutputPath = pdfOutputPath.replace('.pdf', '_cleaned.pdf');
-      const mutoolArgs = [
-        'clean',
-        '-d',  // Remove duplicate objects
-        '-s',  // Sanitize content streams
-        '-z',  // Compress streams
-        pdfOutputPath,
-        tempOutputPath
-      ];
+      const mutoolArgs = ['clean', pdfOutputPath, tempOutputPath];
 
       const mutoolProcess = spawn('mutool', mutoolArgs);
 
       mutoolProcess.on('error', (err) => {
         if (err.code === 'ENOENT') {
-          console.warn('⚠️  Warning: `mutool` not found. Falling back to mat2...');
-          console.warn('   To install MuPDF on Debian/Ubuntu, run: sudo apt-get install mupdf-tools');
-          this.fallbackMat2(pdfOutputPath).then(resolve).catch(reject);
+          console.warn('⚠️  mutool not found, skipping cleanup');
+          resolve();
         } else {
-          console.error('❌ mutool error:', err);
           reject(err);
         }
       });
 
       mutoolProcess.on('close', (code) => {
         if (code === 0) {
-          // Replace original with cleaned version
           const fs = require('fs');
-          try {
-            fs.renameSync(tempOutputPath, pdfOutputPath);
-            console.log('✅ PDF cleaned with mutool.');
-            this.injectMetadata(pdfOutputPath).then(resolve).catch(reject);
-          } catch (renameError) {
-            console.error('❌ Failed to replace original PDF:', renameError);
-            this.fallbackMat2(pdfOutputPath).then(resolve).catch(reject);
-          }
-        } else {
-          console.warn('⚠️  mutool failed, falling back to mat2...');
-          // Clean up temp file if it exists
-          const fs = require('fs');
-          if (fs.existsSync(tempOutputPath)) {
-            fs.unlinkSync(tempOutputPath);
-          }
-          this.fallbackMat2(pdfOutputPath).then(resolve).catch(reject);
+          fs.renameSync(tempOutputPath, pdfOutputPath);
+          console.log('✅ PDF cleaned with mutool.');
         }
+        resolve();
       });
     });
   }
