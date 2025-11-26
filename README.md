@@ -38,24 +38,24 @@ Perfect for:
 
 ### Optional: Create an Alias for Global Usage
 
-To use MarkPDF from any directory, you can create an alias in your shell configuration:
+To use MarkPDF from any directory, create an alias pointing to the `markpdf` script. The script automatically finds its installation directory, so it works from anywhere.
 
 **For Bash (add to `~/.bashrc` or `~/.bash_profile`):**
 ```bash
-alias markpdf='/path/to/markpdf/markpdf'
+alias markpdf='~/path/to/markpdf/markpdf'
 ```
 
 **For Zsh (add to `~/.zshrc`):**
 ```bash
-alias markpdf='/path/to/markpdf/markpdf'
+alias markpdf='~/path/to/markpdf/markpdf'
 ```
 
 **For Fish (add to `~/.config/fish/config.fish`):**
 ```fish
-alias markpdf='/path/to/markpdf/markpdf'
+alias markpdf='~/path/to/markpdf/markpdf'
 ```
 
-Replace `/path/to/markpdf/markpdf` with the actual path to your MarkPDF installation.
+Replace `~/path/to/markpdf` with your actual installation path.
 
 After adding the alias, reload your shell configuration:
 ```bash
